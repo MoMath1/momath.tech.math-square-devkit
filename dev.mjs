@@ -1,7 +1,7 @@
 // © 2026 National Museum of Mathematics. All rights reserved.
 import * as esbuild from 'esbuild';
 import { spawn } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST = 'dist';
@@ -113,6 +113,23 @@ function copyAssets() {
 
   // Copy prod.json for reference
   copyFileSync('prod.json', join(DIST, 'prod.json'));
+
+  // Example behaviors may ship models / static files next to the source
+  if (existsSync('examples')) {
+    cpSync('examples', join(DIST, 'examples'), { recursive: true });
+  }
+
+  // ONNX Runtime Web WASM sidecars (loaded at runtime via ort.env.wasm.wasmPaths)
+  const ortSrc = join('node_modules', 'onnxruntime-web', 'dist');
+  if (existsSync(ortSrc)) {
+    const ortDst = join(DIST, 'ort');
+    mkdirSync(ortDst, { recursive: true });
+    for (const f of readdirSync(ortSrc)) {
+      if (f.endsWith('.wasm') || /^ort-wasm.*\.(mjs|js)$/.test(f)) {
+        copyFileSync(join(ortSrc, f), join(ortDst, f));
+      }
+    }
+  }
 
   // Transform and write HTML files
   for (const htmlFile of ['index.html', 'dev.html']) {
